@@ -64,7 +64,7 @@ export interface TheoremPropertiesFeedback {
 }
 
 export interface GuessFeedback {
-  words: GuessWord[];
+  guessedTheoremName: string;
   propertiesFeedback: TheoremPropertiesFeedback;
   guessString: string;
 }

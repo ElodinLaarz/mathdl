@@ -4,7 +4,6 @@ import { useCallback, useEffect, useState } from 'react';
 import type {
   GameStats,
   GuessFeedback,
-  GuessWord,
   PropertyComparisonState,
   TheoremPropertiesFeedback,
   YearComparisonState,
@@ -27,6 +26,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { getSecureLocalStorageItem, isGuessFeedback, safeParseJSON } from '@/lib/security';
 import { getTheoremOfTheDay, THEOREMS, type Theorem } from '@/lib/theorems';
 import { useToast } from '@/hooks/use-toast';
 
@@ -59,66 +59,153 @@ export default function HomePage() {
   const [revealedHintMessage, setRevealedHintMessage] = useState<string | null>(null);
   const [duplicateGuessToHighlight, setDuplicateGuessToHighlight] = useState<string | null>(null);
 
+  // Type guard for GameStats
+  const isValidGameStats = (value: unknown): value is GameStats => {
+    if (typeof value !== 'object' || value === null) return false;
+    const stats = value as Record<string, unknown>;
+    return (
+      typeof stats.gamesPlayed === 'number' &&
+      typeof stats.gamesWon === 'number' &&
+      typeof stats.currentStreak === 'number' &&
+      typeof stats.maxStreak === 'number' &&
+      typeof stats.guesses === 'object' &&
+      stats.guesses !== null &&
+      Object.values(stats.guesses as Record<string, unknown>).every(v => typeof v === 'number')
+    );
+  };
+
+  // Load game state from localStorage on mount
   useEffect(() => {
-    setIsMounted(true);
-    const dailyTheorem = getTheoremOfTheDay();
-    setTheorem(dailyTheorem);
+    const loadGameState = () => {
+      setIsMounted(true);
+      const dailyTheorem = getTheoremOfTheDay();
+      setTheorem(dailyTheorem);
 
-    const storedStats = localStorage.getItem('theoremGuessStats');
-    if (storedStats) {
-      setStats(JSON.parse(storedStats));
-    }
-
-    const lastPlayedTheoremId = localStorage.getItem('lastPlayedTheoremId');
-    const lastPlayDate = localStorage.getItem('lastPlayDate');
-    const todayStr = new Date().toDateString();
-
-    if (lastPlayedTheoremId !== dailyTheorem.id || lastPlayDate !== todayStr) {
-      localStorage.setItem('todaysGuesses', '[]');
-      localStorage.setItem('todaysAttempt', '0');
-      localStorage.setItem('todaysGameState', 'playing');
-      localStorage.setItem('todaysHintUsed', 'false');
-      localStorage.removeItem('todaysRevealedHint');
-      setGuesses([]);
-      setCurrentAttempt(0);
-      setGameState('playing');
-      setHintUsedToday(false);
-      setRevealedHintMessage(null);
-      setSelectedTheoremForGuess(undefined);
-      setDuplicateGuessToHighlight(null);
-    } else {
-      const savedGuesses = JSON.parse(localStorage.getItem('todaysGuesses') || '[]');
-      const savedAttempt = parseInt(localStorage.getItem('todaysAttempt') || '0', 10);
-      const savedGameState =
-        (localStorage.getItem('todaysGameState') as 'playing' | 'won' | 'lost') || 'playing';
-      const savedHintUsed = localStorage.getItem('todaysHintUsed') === 'true';
-      const savedRevealedHint = localStorage.getItem('todaysRevealedHint') || null;
-
-      setGuesses(savedGuesses);
-      setCurrentAttempt(savedAttempt);
-      setGameState(savedGameState);
-      setHintUsedToday(savedHintUsed);
-      if (savedHintUsed && savedRevealedHint) {
-        setRevealedHintMessage(savedRevealedHint);
+      // Load and validate stats
+      const storedStats = localStorage.getItem('theoremGuessStats');
+      if (storedStats) {
+        const defaultStats: GameStats = {
+          gamesPlayed: 0,
+          gamesWon: 0,
+          currentStreak: 0,
+          maxStreak: 0,
+          guesses: {},
+        };
+        const parsedStats = safeParseJSON(storedStats, defaultStats, isValidGameStats);
+        setStats(parsedStats);
       }
-    }
-    localStorage.setItem('lastPlayedTheoremId', dailyTheorem.id);
-    localStorage.setItem('lastPlayDate', todayStr);
+
+      const lastPlayedTheoremId = localStorage.getItem('lastPlayedTheoremId');
+      const lastPlayDate = localStorage.getItem('lastPlayDate');
+      const todayStr = new Date().toDateString();
+
+      // Check if we need to reset the game state for a new day
+      if (lastPlayedTheoremId !== dailyTheorem.id || lastPlayDate !== todayStr) {
+        // Reset game state for a new day
+        localStorage.setItem('todaysGuesses', '[]');
+        localStorage.setItem('todaysAttempt', '0');
+        localStorage.setItem('todaysGameState', 'playing');
+        localStorage.setItem('todaysHintUsed', 'false');
+        localStorage.removeItem('todaysRevealedHint');
+
+        setGuesses([]);
+        setCurrentAttempt(0);
+        setGameState('playing');
+        setHintUsedToday(false);
+        setRevealedHintMessage(null);
+        setSelectedTheoremForGuess(undefined);
+        setDuplicateGuessToHighlight(null);
+      } else {
+        // Load existing game state with proper type safety
+        const savedGuesses =
+          getSecureLocalStorageItem<GuessFeedback[]>(
+            'todaysGuesses',
+            (value): value is GuessFeedback[] =>
+              Array.isArray(value) && value.every(isGuessFeedback)
+          ) || [];
+
+        const savedAttempt = Math.max(
+          0,
+          Math.min(MAX_GUESSES, parseInt(localStorage.getItem('todaysAttempt') || '0', 10) || 0)
+        );
+
+        const savedGameState =
+          getSecureLocalStorageItem<'playing' | 'won' | 'lost'>(
+            'todaysGameState',
+            (val): val is 'playing' | 'won' | 'lost' =>
+              val === 'playing' || val === 'won' || val === 'lost'
+          ) || 'playing';
+
+        const savedHintUsed = localStorage.getItem('todaysHintUsed') === 'true';
+        const savedRevealedHint = localStorage.getItem('todaysRevealedHint');
+
+        setGuesses(savedGuesses);
+        setCurrentAttempt(savedAttempt);
+        setGameState(savedGameState);
+        setHintUsedToday(savedHintUsed);
+
+        if (savedHintUsed && savedRevealedHint) {
+          setRevealedHintMessage(savedRevealedHint);
+        }
+      }
+
+      // Update last played info
+      localStorage.setItem('lastPlayedTheoremId', dailyTheorem.id);
+      localStorage.setItem('lastPlayDate', todayStr);
+    };
+
+    loadGameState();
   }, []);
 
+  // Save game state to localStorage whenever it changes
   useEffect(() => {
     if (!isMounted || gameState === 'loading') return;
-    localStorage.setItem('theoremGuessStats', JSON.stringify(stats));
-    localStorage.setItem('todaysGuesses', JSON.stringify(guesses));
-    localStorage.setItem('todaysAttempt', currentAttempt.toString());
-    localStorage.setItem('todaysGameState', gameState);
-    localStorage.setItem('todaysHintUsed', String(hintUsedToday));
-    if (revealedHintMessage) {
-      localStorage.setItem('todaysRevealedHint', revealedHintMessage);
-    } else {
-      localStorage.removeItem('todaysRevealedHint');
+
+    try {
+      // Only save valid stats
+      if (isValidGameStats(stats)) {
+        localStorage.setItem('theoremGuessStats', JSON.stringify(stats));
+      }
+
+      // Only save valid guesses
+      if (isValidGameStats(guesses)) {
+        localStorage.setItem('todaysGuesses', JSON.stringify(guesses));
+      }
+
+      // Ensure currentAttempt is within bounds
+      const safeCurrentAttempt = Math.max(0, Math.min(MAX_GUESSES, currentAttempt));
+      localStorage.setItem('todaysAttempt', safeCurrentAttempt.toString());
+
+      // Ensure gameState is valid
+      const safeGameState = ['playing', 'won', 'lost'].includes(gameState) ? gameState : 'playing';
+      localStorage.setItem('todaysGameState', safeGameState);
+
+      // Save hint state
+      localStorage.setItem('todaysHintUsed', String(!!hintUsedToday));
+
+      // Save revealed hint message if it exists
+      if (revealedHintMessage && typeof revealedHintMessage === 'string') {
+        localStorage.setItem('todaysRevealedHint', revealedHintMessage);
+      } else {
+        localStorage.removeItem('todaysRevealedHint');
+      }
+    } catch {
+      toast({
+        title: 'Error saving game state',
+        description: 'Please try again later.',
+        variant: 'destructive',
+      });
     }
-  }, [stats, guesses, currentAttempt, gameState, isMounted, hintUsedToday, revealedHintMessage]);
+  }, [
+    stats,
+    guesses,
+    currentAttempt,
+    gameState,
+    isMounted,
+    hintUsedToday,
+    revealedHintMessage,
+    toast,
+  ]);
 
   useEffect(() => {
     if (duplicateGuessToHighlight) {
@@ -129,24 +216,61 @@ export default function HomePage() {
     }
   }, [duplicateGuessToHighlight]);
 
+  /**
+   * Updates game statistics when a game ends
+   * @param win Whether the game was won
+   * @param numGuesses Number of guesses made (only used when game is won)
+   */
   const updateStatsOnGameEnd = useCallback((win: boolean, numGuesses?: number) => {
-    setStats(prevStats => {
+    setStats((prevStats: GameStats) => {
+      // Calculate basic stats
       const newGamesPlayed = prevStats.gamesPlayed + 1;
       const newGamesWon = win ? prevStats.gamesWon + 1 : prevStats.gamesWon;
       const newCurrentStreak = win ? prevStats.currentStreak + 1 : 0;
       const newMaxStreak = Math.max(prevStats.maxStreak, newCurrentStreak);
 
-      const newGuessesDistribution = { ...prevStats.guesses };
-      if (win && numGuesses !== undefined) {
-        newGuessesDistribution[numGuesses] = (newGuessesDistribution[numGuesses] || 0) + 1;
+      // Create a Map for guess distribution to prevent prototype pollution
+      const guessDistribution = new Map<number, number>();
+
+      // Initialize the distribution with all possible guess counts (1 to MAX_GUESSES)
+      for (let i = 1; i <= MAX_GUESSES; i++) {
+        guessDistribution.set(i, 0);
       }
+
+      // Load existing guess counts from previous stats
+      Object.entries(prevStats.guesses).forEach(([key, value]) => {
+        const guessCount = parseInt(key, 10);
+        if (Number.isInteger(guessCount) && guessCount > 0 && guessCount <= MAX_GUESSES) {
+          guessDistribution.set(guessCount, value);
+        }
+      });
+
+      // If the game was won, update the guess count for this win
+      if (win && typeof numGuesses === 'number' && numGuesses > 0 && numGuesses <= MAX_GUESSES) {
+        const currentCount = guessDistribution.get(numGuesses) || 0;
+        guessDistribution.set(numGuesses, currentCount + 1);
+      }
+
+      // Convert Map back to object for storage
+      const guesses: Record<number, number> = Object.fromEntries(
+        [...guessDistribution].filter(
+          ([guessNum, count]) =>
+            typeof guessNum === 'number' &&
+            Number.isInteger(guessNum) &&
+            guessNum > 0 &&
+            guessNum <= MAX_GUESSES &&
+            typeof count === 'number' &&
+            Number.isInteger(count) &&
+            count > 0
+        )
+      );
 
       return {
         gamesPlayed: newGamesPlayed,
         gamesWon: newGamesWon,
         currentStreak: newCurrentStreak,
         maxStreak: newMaxStreak,
-        guesses: newGuessesDistribution,
+        guesses,
       };
     });
   }, []);
@@ -162,8 +286,6 @@ export default function HomePage() {
 
   const processGuess = useCallback(
     (guessStr: string, targetTheorem: Theorem, allTheorems: Theorem[]): GuessFeedback => {
-      const wordFeedback: GuessWord[] = [{ word: guessStr, state: 'empty' }]; // All words are neutral
-
       let propertiesFeedbackResult: TheoremPropertiesFeedback;
       const guessedTheorem = allTheorems.find(
         t => normalizeString(t.name) === normalizeString(guessStr)
@@ -315,7 +437,7 @@ export default function HomePage() {
       }
 
       return {
-        words: wordFeedback,
+        guessedTheoremName: targetTheorem.name,
         propertiesFeedback: propertiesFeedbackResult,
         guessString: guessStr,
       };
@@ -428,81 +550,17 @@ export default function HomePage() {
 
   const handleRequestHint = useCallback(() => {
     if (hintUsedToday || gameState !== 'playing' || !theorem) return;
+    // Look at all properties that have been determined to be green so far and
+    // randomly share the correct property from one that has not been learned yet.
+    const greenProperties = guesses.filter(
+      guess =>
+        guess && guess.propertiesFeedback && guess.propertiesFeedback.proposedByState === 'correct'
+    );
+    const randomGreenProperty = greenProperties[Math.floor(Math.random() * greenProperties.length)];
 
-    let latestRecognizedGuessFeedback: TheoremPropertiesFeedback | undefined = undefined;
-    for (let i = guesses.length - 1; i >= 0; i--) {
-      const guess = guesses[i];
-      if (guess.propertiesFeedback && guess.propertiesFeedback.guessedTheoremName) {
-        latestRecognizedGuessFeedback = guess.propertiesFeedback;
-        break;
-      }
-    }
-
-    const candidateHints: { property: string; value: string | number }[] = [];
-
-    if (
-      theorem.proposedBy &&
-      (!latestRecognizedGuessFeedback ||
-        latestRecognizedGuessFeedback.proposedByState !== 'correct')
-    ) {
-      candidateHints.push({ property: 'Proposed By', value: theorem.proposedBy });
-    }
-    if (
-      theorem.provedBy &&
-      (!latestRecognizedGuessFeedback || latestRecognizedGuessFeedback.provedByState !== 'correct')
-    ) {
-      candidateHints.push({ property: 'Proved By', value: theorem.provedBy });
-    }
-    if (
-      theorem.yearProposed !== undefined &&
-      (!latestRecognizedGuessFeedback ||
-        latestRecognizedGuessFeedback.yearProposedState !== 'correct')
-    ) {
-      candidateHints.push({ property: 'Year Proposed', value: theorem.yearProposed });
-    }
-    if (
-      theorem.yearProved !== undefined &&
-      (!latestRecognizedGuessFeedback ||
-        latestRecognizedGuessFeedback.yearProvedState !== 'correct')
-    ) {
-      candidateHints.push({ property: 'Year Proved', value: theorem.yearProved });
-    }
-    if (
-      theorem.subfield &&
-      (!latestRecognizedGuessFeedback || latestRecognizedGuessFeedback.subfieldState !== 'correct')
-    ) {
-      candidateHints.push({ property: 'Subfield', value: theorem.subfield });
-    }
-    if (
-      theorem.educationLevel &&
-      (!latestRecognizedGuessFeedback ||
-        latestRecognizedGuessFeedback.educationLevelState !== 'correct')
-    ) {
-      candidateHints.push({ property: 'Education Level', value: theorem.educationLevel });
-    }
-    if (
-      theorem.geographicalRegion &&
-      (!latestRecognizedGuessFeedback ||
-        latestRecognizedGuessFeedback.geographicalRegionState !== 'correct')
-    ) {
-      candidateHints.push({ property: 'Geographical Region', value: theorem.geographicalRegion });
-    }
-    if (
-      theorem.proofTechnique &&
-      (!latestRecognizedGuessFeedback ||
-        latestRecognizedGuessFeedback.proofTechniqueState !== 'correct')
-    ) {
-      candidateHints.push({ property: 'Proof Technique', value: theorem.proofTechnique });
-    }
-
-    if (candidateHints.length === 0) {
-      setRevealedHintMessage(
-        'No more specific hints available, or all properties already guessed correctly!'
-      );
-    } else {
-      const randomHint = candidateHints[Math.floor(Math.random() * candidateHints.length)];
-      setRevealedHintMessage(`Hint: The ${randomHint.property} is ${randomHint.value}.`);
-    }
+    setRevealedHintMessage(
+      `Hint: The ${randomGreenProperty.propertiesFeedback.proposedByState} is ${randomGreenProperty.propertiesFeedback.proposedByCorrect}.`
+    );
     setHintUsedToday(true);
   }, [hintUsedToday, gameState, theorem, guesses]);
 
@@ -601,7 +659,6 @@ export default function HomePage() {
           <CardContent className="p-4 sm:p-6">
             <FeedbackDisplay
               guesses={guesses}
-              maxGuesses={MAX_GUESSES}
               targetTheorem={theorem}
               duplicateGuessToHighlight={duplicateGuessToHighlight}
             />
