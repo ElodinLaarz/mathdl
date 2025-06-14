@@ -3,7 +3,7 @@
 import * as React from 'react';
 import * as RechartsPrimitive from 'recharts';
 import { NameType, Payload, ValueType } from 'recharts/types/component/DefaultTooltipContent';
-import { sanitizeCSSValue, sanitizeHTML, sanitizeIdentifier } from '@/lib/security';
+import { sanitizeCSSValue, sanitizeIdentifier } from '@/lib/security';
 import { cn } from '@/lib/utils';
 
 // Format: { THEME_NAME: CSS_SELECTOR }
@@ -67,7 +67,7 @@ ChartContainer.displayName = 'Chart';
 const ChartStyle = ({ id, config }: { id: string; config: ChartConfig }) => {
   const colorConfig = Object.entries(config).filter(([, config]) => config.theme || config.color);
 
-  // Sanitize CSS values to prevent XSS
+  // Generate secure CSS
   const secureCSS = React.useMemo((): string => {
     if (!colorConfig.length) return '';
 
@@ -99,10 +99,7 @@ const ChartStyle = ({ id, config }: { id: string; config: ChartConfig }) => {
     return null;
   }
 
-  // Sanitize the CSS before rendering
-  const sanitizedCSS = sanitizeHTML(`<style type="text/css">${secureCSS}</style>`);
-
-  return <div dangerouslySetInnerHTML={{ __html: sanitizedCSS }} />;
+  return <style>{secureCSS}</style>;
 };
 
 const ChartTooltip = RechartsPrimitive.Tooltip;
