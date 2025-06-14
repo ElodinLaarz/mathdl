@@ -561,6 +561,10 @@ export default function HomePage() {
       guess =>
         guess && guess.propertiesFeedback && guess.propertiesFeedback.proposedByState === 'correct'
     );
+    if (greenProperties.length === 0) {
+      setRevealedHintMessage('No hints available.');
+      return;
+    }
     const randomGreenProperty = greenProperties[Math.floor(Math.random() * greenProperties.length)];
 
     setRevealedHintMessage(
