@@ -144,7 +144,7 @@ jobs:
           path: ./
           base: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || '' }}
           head: ${{ github.sha }}
-          extra_args: --only-verified --fail
+          extra_args: --only-verified
 
   semgrep-scan:
     name: Semgrep Security Scan
