@@ -45,10 +45,10 @@ const securityConfig = [
       'react-hooks/exhaustive-deps': 'warn',
 
       // Additional React security rules (note: these may not be available without react plugin)
-      // 'react/no-danger': 'error',
-      // 'react/no-danger-with-children': 'error',
-      // 'react/jsx-no-script-url': 'error',
-      // 'react/jsx-no-target-blank': 'error',
+      'react/no-danger': 'error',
+      'react/no-danger-with-children': 'error',
+      'react/jsx-no-script-url': 'error',
+      'react/jsx-no-target-blank': 'error',
 
       // General security-related rules
       'no-eval': 'error',
