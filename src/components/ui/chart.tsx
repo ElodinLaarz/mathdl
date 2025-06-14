@@ -72,7 +72,7 @@ const ChartStyle = ({ id, config }: { id: string; config: ChartConfig }) => {
   }
 
   // Sanitize CSS values to prevent XSS
-  const generateSecureCSS = (): string => {
+  const generateSecureCSS = React.useMemo((): string => {
     return Object.entries(THEMES)
       .map(([theme, prefix]) => {
         const sanitizedPrefix = sanitizeCSSValue(prefix);
