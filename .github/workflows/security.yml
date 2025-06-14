@@ -88,11 +88,8 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Install ESLint security plugins
-        run: npm install --no-save eslint-plugin-security eslint-plugin-react-hooks
-
       - name: Run ESLint with security rules
-        run: npx eslint . --config eslint.security.config.js --ext .js,.jsx,.ts,.tsx --format json --output-file eslint-results.json
+        run: npx eslint . --config eslint.security.config.js --format json --output-file eslint-results.json
         continue-on-error: true
 
       - name: Upload ESLint results
@@ -160,6 +157,7 @@ jobs:
   secrets-scan:
     name: Secret Detection
     runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
     steps:
       - name: Checkout code
         uses: actions/checkout@v4

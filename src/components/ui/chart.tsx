@@ -2,6 +2,8 @@
 
 import * as React from 'react';
 import * as RechartsPrimitive from 'recharts';
+import { NameType, Payload, ValueType } from 'recharts/types/component/DefaultTooltipContent';
+import { sanitizeCSSValue, sanitizeIdentifier } from '@/lib/security';
 import { cn } from '@/lib/utils';
 
 // Format: { THEME_NAME: CSS_SELECTOR }
@@ -69,23 +71,33 @@ const ChartStyle = ({ id, config }: { id: string; config: ChartConfig }) => {
     return null;
   }
 
+  // Sanitize CSS values to prevent XSS
+  const generateSecureCSS = (): string => {
+    return Object.entries(THEMES)
+      .map(([theme, prefix]) => {
+        const sanitizedPrefix = sanitizeCSSValue(prefix);
+        const sanitizedId = sanitizeIdentifier(id);
+
+        const colorRules = colorConfig
+          .map(([key, itemConfig]) => {
+            const color =
+              itemConfig.theme?.[theme as keyof typeof itemConfig.theme] || itemConfig.color;
+            const sanitizedKey = sanitizeIdentifier(key);
+            const sanitizedColor = color ? sanitizeCSSValue(color) : null;
+            return sanitizedColor ? `  --color-${sanitizedKey}: ${sanitizedColor};` : null;
+          })
+          .filter(Boolean)
+          .join('\n');
+
+        return `${sanitizedPrefix} [data-chart=${sanitizedId}] {\n${colorRules}\n}`;
+      })
+      .join('\n');
+  };
+
   return (
     <style
       dangerouslySetInnerHTML={{
-        __html: Object.entries(THEMES)
-          .map(
-            ([theme, prefix]) => `
-${prefix} [data-chart=${id}] {
-${colorConfig
-  .map(([key, itemConfig]) => {
-    const color = itemConfig.theme?.[theme as keyof typeof itemConfig.theme] || itemConfig.color;
-    return color ? `  --color-${key}: ${color};` : null;
-  })
-  .join('\n')}
-}
-`
-          )
-          .join('\n'),
+        __html: generateSecureCSS(),
       }}
     />
   );
@@ -169,7 +181,13 @@ const ChartTooltipContent = React.forwardRef<
           {payload.map((item, index) => {
             const key = `${nameKey || item.name || item.dataKey || 'value'}`;
             const itemConfig = getPayloadConfigFromPayload(config, item, key);
-            const indicatorColor = color || item.payload.fill || item.color;
+            // Safe color extraction with fallback
+            const indicatorColor =
+              color ||
+              (typeof item.payload === 'object' && item.payload && 'fill' in item.payload
+                ? String((item.payload as { fill?: unknown }).fill || '')
+                : '') ||
+              (typeof item.color === 'string' ? item.color : '');
 
             return (
               <div
@@ -180,7 +198,15 @@ const ChartTooltipContent = React.forwardRef<
                 )}
               >
                 {formatter && item?.value !== undefined && item.name ? (
-                  formatter(item.value, item.name, item, index, item.payload)
+                  formatter(
+                    item.value,
+                    item.name,
+                    item,
+                    index,
+                    Array.isArray(item.payload)
+                      ? (item.payload as Payload<ValueType, NameType>[])
+                      : []
+                  )
                 ) : (
                   <>
                     {itemConfig?.icon ? (
@@ -219,7 +245,7 @@ const ChartTooltipContent = React.forwardRef<
                           {itemConfig?.label || item.name}
                         </span>
                       </div>
-                      {item.value && (
+                      {item.value && typeof item.value === 'number' && (
                         <span className="font-mono font-medium tabular-nums text-foreground">
                           {item.value.toLocaleString()}
                         </span>
@@ -262,13 +288,16 @@ const ChartLegendContent = React.forwardRef<
         className
       )}
     >
-      {payload.map(item => {
-        const key = `${nameKey || item.dataKey || 'value'}`;
-        const itemConfig = getPayloadConfigFromPayload(config, item, key);
+      {payload.map((item: unknown) => {
+        const typedItem = item as { dataKey?: string; color?: unknown; value?: unknown };
+        const key = `${nameKey || typedItem.dataKey || 'value'}`;
+        const itemConfig = getPayloadConfigFromPayload(config, typedItem, key);
+        // Safe color access
+        const itemColor = typeof typedItem.color === 'string' ? typedItem.color : '#000';
 
         return (
           <div
-            key={item.value}
+            key={typedItem.value ? String(typedItem.value) : key}
             className={cn(
               'flex items-center gap-1.5 [&>svg]:h-3 [&>svg]:w-3 [&>svg]:text-muted-foreground'
             )}
@@ -279,7 +308,7 @@ const ChartLegendContent = React.forwardRef<
               <div
                 className="h-2 w-2 shrink-0 rounded-[2px]"
                 style={{
-                  backgroundColor: item.color,
+                  backgroundColor: itemColor,
                 }}
               />
             )}
@@ -315,7 +344,18 @@ function getPayloadConfigFromPayload(config: ChartConfig, payload: unknown, key:
     configLabelKey = payloadPayload[key as keyof typeof payloadPayload] as string;
   }
 
-  return configLabelKey in config ? config[configLabelKey] : config[key as keyof typeof config];
+  // Use secure property access to prevent object injection
+  const safeConfigAccess = (
+    obj: ChartConfig,
+    prop: string
+  ): ChartConfig[keyof ChartConfig] | undefined => {
+    if (typeof prop !== 'string' || !Object.prototype.hasOwnProperty.call(obj, prop)) {
+      return undefined;
+    }
+    return obj[prop as keyof ChartConfig];
+  };
+
+  return safeConfigAccess(config, configLabelKey) || safeConfigAccess(config, key);
 }
 
 export {
