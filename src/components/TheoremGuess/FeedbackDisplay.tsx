@@ -223,8 +223,6 @@ export default function FeedbackDisplay({
             );
           }
 
-          if (!guessFeedback) return null;
-
           const { propertiesFeedback, guessString } = guessFeedback;
           const normalizedTargetName = targetTheorem?.name
             ? normalizeForCompare(targetTheorem.name)
