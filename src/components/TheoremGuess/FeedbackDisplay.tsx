@@ -155,12 +155,14 @@ interface FeedbackDisplayProps {
   guesses: GuessFeedback[];
   targetTheorem: Theorem;
   duplicateGuessToHighlight: string | null;
+  maxGuesses: number;
 }
 
 export default function FeedbackDisplay({
   guesses,
   targetTheorem,
   duplicateGuessToHighlight,
+  maxGuesses,
 }: FeedbackDisplayProps) {
   // Type guard to check if an object is a valid GuessFeedback
   const isGuessFeedback = (obj: unknown): obj is GuessFeedback => {
@@ -189,10 +191,15 @@ export default function FeedbackDisplay({
     );
   };
 
-  const rowsToDisplay = ((): GuessFeedback[] => {
-    return Object.values(
-      Object.fromEntries(Object.entries(guesses).filter(([_, value]) => isGuessFeedback(value)))
+  const rowsToDisplay = ((): (GuessFeedback | null)[] => {
+    // Only valid GuessFeedback objects
+    const validGuesses = Array.isArray(guesses) ? guesses.filter(isGuessFeedback) : [];
+    // Fill up to maxGuesses with null placeholders
+    const arr: (GuessFeedback | null)[] = Array.from(
+      { length: maxGuesses },
+      (_, i) => validGuesses[i] || null
     );
+    return arr;
   })();
 
   const normalizeForCompare = (str: string = ''): string =>

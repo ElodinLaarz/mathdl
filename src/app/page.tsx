@@ -26,7 +26,12 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { getSecureLocalStorageItem, isGuessFeedback, safeParseJSON } from '@/lib/security';
+import {
+  getSecureLocalStorageItem,
+  isGuessFeedback,
+  isGuessFeedbackArray,
+  safeParseJSON,
+} from '@/lib/security';
 import { getTheoremOfTheDay, THEOREMS, type Theorem } from '@/lib/theorems';
 import { useToast } from '@/hooks/use-toast';
 
@@ -168,7 +173,7 @@ export default function HomePage() {
       }
 
       // Only save valid guesses
-      if (isValidGameStats(guesses)) {
+      if (isGuessFeedbackArray(guesses)) {
         localStorage.setItem('todaysGuesses', JSON.stringify(guesses));
       }
 
@@ -437,7 +442,7 @@ export default function HomePage() {
       }
 
       return {
-        guessedTheoremName: targetTheorem.name,
+        guessedTheoremName: guessedTheorem?.name ?? guessStr,
         propertiesFeedback: propertiesFeedbackResult,
         guessString: guessStr,
       };
@@ -661,6 +666,7 @@ export default function HomePage() {
               guesses={guesses}
               targetTheorem={theorem}
               duplicateGuessToHighlight={duplicateGuessToHighlight}
+              maxGuesses={MAX_GUESSES}
             />
 
             {gameState === 'playing' && (

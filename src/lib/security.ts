@@ -91,6 +91,10 @@ export function getSecureLocalStorageItem<T>(
     const parsed: unknown = JSON.parse(item);
 
     if (validator && !validator(parsed)) {
+      console.warn(
+        `[security] Validation failed for localStorage key '${key}'. Removing invalid data.`,
+        parsed
+      );
       localStorage.removeItem(key);
       return null;
     }
@@ -110,15 +114,19 @@ export function isValidGameState(value: unknown): value is 'playing' | 'won' | '
 }
 
 /**
- * Type guard for validating array of guess feedback
+ * Type guard for validating a single GuessFeedback object.
+ * Checks for required properties: guessedTheoremName, propertiesFeedback, and guessString.
  */
 export function isGuessFeedback(value: unknown): value is GuessFeedback {
-  // First, ensure it's a non-null object. This is a crucial first step.
   if (typeof value !== 'object' || value === null) {
     return false;
   }
-
-  // Now that we know it's an object, we can safely use the 'in' operator
-  // to check for the existence of properties.
   return 'guessedTheoremName' in value && 'propertiesFeedback' in value && 'guessString' in value;
+}
+
+/**
+ * Type guard for validating an array of GuessFeedback objects.
+ */
+export function isGuessFeedbackArray(value: unknown): value is GuessFeedback[] {
+  return Array.isArray(value) && value.every(isGuessFeedback);
 }

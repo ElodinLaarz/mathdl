@@ -7,6 +7,9 @@ import type { ToastActionElement, ToastProps } from '@/components/ui/toast';
 // Keep only the toast remove delay since it's used
 const TOAST_REMOVE_DELAY = 1000000;
 
+// Maximum number of toasts to display at once
+const TOAST_LIMIT = 1;
+
 type ToasterToast = ToastProps & {
   id: string;
   title?: React.ReactNode;
@@ -74,7 +77,7 @@ export const reducer = (state: State, action: Action): State => {
     case ACTION_TYPES.ADD_TOAST:
       return {
         ...state,
-        toasts: [action.toast, ...state.toasts].slice(0, 1), // Limit to 1 toast
+        toasts: [action.toast, ...state.toasts].slice(0, TOAST_LIMIT), // Limit to TOAST_LIMIT toasts
       };
 
     case ACTION_TYPES.UPDATE_TOAST:
