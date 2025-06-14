@@ -1,0 +1,56 @@
+version: 2
+updates:
+  # Enable version updates for npm
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "04:00"
+    open-pull-requests-limit: 10
+    reviewers:
+      - "elodin"  # Replace with your GitHub username
+    assignees:
+      - "elodin"  # Replace with your GitHub username
+    commit-message:
+      prefix: "⬆️"
+      prefix-development: "⬆️ dev-deps"
+      include: "scope"
+    labels:
+      - "dependencies"
+      - "security"
+    # Group security updates together
+    groups:
+      security-updates:
+        patterns:
+          - "*"
+        update-types:
+          - "security"
+    # Auto-merge patch updates for dev dependencies
+    allow:
+      - dependency-type: "development"
+        update-type: "version-update:semver-patch"
+    # Ignore major updates for production dependencies (manual review required)
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+        dependency-type: "direct:production"
+
+  # Enable version updates for GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "04:00"
+    open-pull-requests-limit: 5
+    reviewers:
+      - "ElodinLaarz"
+    assignees:
+      - "ElodinLaarz"
+    commit-message:
+      prefix: "⬆️"
+      include: "scope"
+    labels:
+      - "github-actions"
+      - "dependencies"

@@ -9,9 +9,13 @@
     "start": "next start",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
+    "lint:security": "eslint . --config eslint.security.config.js",
     "typecheck": "tsc --noEmit",
     "format": "prettier --write \"**/*.{js,jsx,ts,tsx,css,md,json}\"",
     "format:check": "prettier --check \"**/*.{js,jsx,ts,tsx,css,md,json}\"",
+    "security:audit": "npm audit --audit-level=moderate",
+    "security:audit-fix": "npm audit fix",
+    "security:check": "npm run lint:security && npm run typecheck && npm run security:audit",
     "prepare": "husky"
   },
   "dependencies": {
