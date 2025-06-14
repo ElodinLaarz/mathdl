@@ -227,9 +227,7 @@ export default function FeedbackDisplay({
           const normalizedTargetName = targetTheorem?.name
             ? normalizeForCompare(targetTheorem.name)
             : '';
-          const isCorrectGuess = guessString
-            ? normalizeForCompare(guessString) === normalizedTargetName
-            : false;
+          const isCorrectGuess = normalizeForCompare(guessString) === normalizedTargetName;
 
           const isHighlightedDuplicate =
             duplicateGuessToHighlight &&
