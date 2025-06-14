@@ -1,21 +1,45 @@
 # MathDL - Theorem Guesser
 
-A daily guessing game for math theorems, inspired by Wordle. Each day, players try to guess a theorem based on hints and feedback about various properties such as the year, mathematician, subfield, and more.
+A daily guessing game for mathematical theorems, inspired by Wordle. Each day, players try to guess the theorem of the day by entering theorem names and receiving detailed feedback about various properties.
 
 ## Features
 
-- Daily theorem challenge
-- Hints based on properties like year, mathematician, and subfield
-- Streak tracking and statistics
-- Mobile-friendly design with dark/light mode support
+- **Daily Theorem Challenge**: A new theorem to guess each day, deterministically selected based on the date
+- **Rich Feedback System**: Detailed comparison feedback showing:
+  - Theorem name match
+  - Proposed by (mathematician who proposed it)
+  - Proved by (mathematician who proved it)
+  - Year proposed and year proved (with directional hints)
+  - Mathematical subfield
+  - Education level (Elementary, Undergraduate, Graduate, Modern Research)
+  - Geographical region
+  - Proof technique
+- **Game Statistics**: Track wins, losses, current streak, and guess distribution
+- **Hint System**: Optional hints available during gameplay
+- **Persistent Progress**: Game state and statistics saved locally
+- **Responsive Design**: Mobile-friendly interface with dark/light mode support
+- **Limited Attempts**: Maximum of 10 guesses per day
+
+## How to Play
+
+1. **Daily Challenge**: Each day features a new theorem to guess
+2. **Make a Guess**: Type a theorem name in the search box and select from the dropdown
+3. **Analyze Feedback**: Each guess provides detailed feedback:
+   - 🟢 **Green**: Correct match
+   - 🟡 **Yellow**: Partially correct or close
+   - 🔴 **Red**: Incorrect
+4. **Use Hints**: Get optional hints if you're stuck
+5. **Win Condition**: Guess the correct theorem within 10 attempts
+6. **Statistics**: Track your performance over time
 
 ## Tech Stack
 
-- Next.js
-- TypeScript
-- Tailwind CSS & Radix UI components
-- GenKit AI integration for hints
-- LocalStorage for data persistence
+- **Frontend**: Next.js 15 with TypeScript
+- **Styling**: Tailwind CSS with Radix UI components
+- **State Management**: React hooks with localStorage persistence
+- **Build Tools**: Turbopack for fast development
+- **Code Quality**: ESLint, Prettier, Husky for git hooks
+- **Data**: Static theorem database with deterministic daily selection
 
 ## Development
 
@@ -29,7 +53,7 @@ A daily guessing game for math theorems, inspired by Wordle. Each day, players t
 1. Clone the repository
 
 ```bash
-git clone https://github.com/yourusername/mathdl.git
+git clone https://github.com/ElodinLaarz/mathdl.git
 cd mathdl
 ```
 
@@ -45,11 +69,21 @@ yarn
 
 ```bash
 npm run dev
-# or
-yarn dev
+# This runs: next dev --turbopack
 ```
 
 4. Open [http://localhost:3000](http://localhost:3000) in your browser to see the application
+
+## Available Scripts
+
+- `npm run dev` - Start development server with Turbopack
+- `npm run build` - Build for production
+- `npm run start` - Start production server
+- `npm run lint` - Run ESLint
+- `npm run lint:fix` - Run ESLint with auto-fix
+- `npm run typecheck` - Run TypeScript type checking
+- `npm run format` - Format code with Prettier
+- `npm run format:check` - Check code formatting
 
 ### Code Formatting
 
@@ -60,7 +94,7 @@ To format all files manually:
 ```bash
 npm run format
 # or
-./run-format.sh
+./scripts/run-format.sh
 ```
 
 To check for formatting issues without making changes:
@@ -69,21 +103,51 @@ To check for formatting issues without making changes:
 npm run format:check
 ```
 
-### AI Integration
+## How It Works
 
-For working with the AI hint system:
-
-```bash
-npm run genkit:dev
-# or
-npm run genkit:watch
-```
+- **Daily Selection**: The theorem of the day is deterministically selected using a hash of the current date, ensuring all players get the same theorem
+- **Local Storage**: Game progress, statistics, and settings are persisted in the browser's localStorage
+- **Feedback Algorithm**: Each guess is compared against the target theorem across multiple properties:
+  - Exact matches for categorical properties (subfield, education level, etc.)
+  - Directional feedback for numerical properties (years)
+  - Partial matches for overlapping regions or related fields
+- **Reset Logic**: Game state automatically resets at midnight for the new daily challenge
 
 ## Building for Production
 
 ```bash
 npm run build
 npm run start
+```
+
+## Project Structure
+
+```
+src/
+├── app/                    # Next.js App Router
+│   ├── globals.css        # Global styles
+│   ├── layout.tsx         # Root layout
+│   └── page.tsx           # Main game page
+├── components/             # React components
+│   ├── TheoremGuess/      # Game-specific components
+│   │   ├── FeedbackDisplay.tsx
+│   │   ├── GameEndDisplay.tsx
+│   │   ├── Header.tsx
+│   │   ├── HintDisplay.tsx
+│   │   └── TheoremCombobox.tsx
+│   ├── ui/                # Reusable UI components (Radix UI)
+│   ├── ThemeProvider.tsx  # Theme context provider
+│   └── ThemeToggle.tsx    # Dark/light mode toggle
+├── context/               # React contexts
+│   └── AuthContext.tsx    # Authentication context
+├── hooks/                 # Custom React hooks
+│   ├── use-mobile.tsx     # Mobile detection hook
+│   └── use-toast.ts       # Toast notifications
+├── lib/                   # Utility libraries
+│   ├── theorems.ts        # Theorem data and game logic
+│   └── utils.ts           # General utilities
+└── types/                 # TypeScript type definitions
+    └── index.ts           # Game-related types
 ```
 
 ## License
