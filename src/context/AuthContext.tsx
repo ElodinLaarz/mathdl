@@ -1,10 +1,11 @@
 'use client';
 
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
+import { generateSecureId, getSecureLocalStorageItem } from '@/lib/security';
 import { useToast } from '@/hooks/use-toast';
 
-// Define a simplified User type
-interface User {
+// Define a simplified AuthUser type to avoid conflict with the global User type
+interface AuthUser {
   uid: string;
   displayName: string | null;
   email: string | null;
@@ -12,7 +13,7 @@ interface User {
 }
 
 interface AuthContextType {
-  user: User | null;
+  user: AuthUser | null;
   loading: boolean;
   signIn: () => Promise<void>;
   logout: () => Promise<void>;
@@ -21,29 +22,37 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
   // Load user from localStorage on mount
   useEffect(() => {
-    const savedUser = localStorage.getItem('user');
+    // Type guard for AuthUser object
+    const isValidAuthUser = (value: unknown): value is AuthUser => {
+      return (
+        typeof value === 'object' &&
+        value !== null &&
+        typeof (value as AuthUser).uid === 'string' &&
+        ((value as AuthUser).displayName === null ||
+          typeof (value as AuthUser).displayName === 'string') &&
+        ((value as AuthUser).email === null || typeof (value as AuthUser).email === 'string') &&
+        ((value as AuthUser).photoURL === null || typeof (value as AuthUser).photoURL === 'string')
+      );
+    };
+
+    const savedUser = getSecureLocalStorageItem('user', isValidAuthUser);
     if (savedUser) {
-      try {
-        setUser(JSON.parse(savedUser));
-      } catch (e) {
-        console.error('Failed to parse stored user', e);
-        localStorage.removeItem('user');
-      }
+      setUser(savedUser);
     }
   }, []);
 
   const signIn = async () => {
     setLoading(true);
     try {
-      // For now, create a mock user
-      const mockUser: User = {
-        uid: 'user-' + Math.random().toString(36).substring(2, 9),
+      // For now, create a mock user with secure ID generation
+      const mockUser: AuthUser = {
+        uid: generateSecureId(16, 'user'),
         displayName: 'Guest User',
         email: 'guest@example.com',
         photoURL: null,
@@ -52,8 +61,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setUser(mockUser);
       localStorage.setItem('user', JSON.stringify(mockUser));
       toast({ title: 'Successfully signed in as guest!', duration: 3000 });
-    } catch (error) {
-      console.error('Error signing in: ', error);
+    } catch {
       toast({
         title: 'Sign-in Error',
         description: 'Failed to sign in. Please try again.',
@@ -71,8 +79,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setUser(null);
       localStorage.removeItem('user');
       toast({ title: 'Successfully signed out!', duration: 3000 });
-    } catch (error) {
-      console.error('Error signing out: ', error);
+    } catch {
       toast({
         title: 'Sign-out Error',
         description: 'Failed to sign out. Please try again.',

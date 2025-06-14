@@ -7,7 +7,7 @@ on:
     branches: [main]
 
 jobs:
-  format:
+  format-check:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -22,19 +22,5 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Check formatting
+      - name: Check code formatting
         run: npm run format:check
-
-  format-prettier:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Prettier Action
-        uses: creyD/prettier_action@v4.3
-        with:
-          prettier_options: --write **/*.{js,jsx,ts,tsx,css,md,json}
-          commit_message: '🎨 Formatted code with Prettier'
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

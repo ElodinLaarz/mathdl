@@ -3,9 +3,34 @@ import typescriptParser from '@typescript-eslint/parser';
 
 /** @type {import('eslint').Linter.FlatConfig[]} */
 const config = [
+  // Basic configuration
   {
-    // Apply to all files
     ignores: ['node_modules/**/*', '.next/**/*', '*.config.js', '*.config.ts'],
+  },
+  // TypeScript configuration
+  {
+    files: ['**/*.ts', '**/*.tsx'],
+    languageOptions: {
+      parser: typescriptParser,
+      parserOptions: {
+        project: './tsconfig.json',
+      },
+    },
+    plugins: {
+      '@typescript-eslint': typescriptEslint,
+    },
+    rules: {
+      // TypeScript rules
+      '@typescript-eslint/no-unused-vars': 'warn',
+      '@typescript-eslint/no-explicit-any': 'warn',
+    },
+  },
+  // Next.js specific rules
+  {
+    files: ['**/*.tsx'],
+    rules: {
+      // Next.js specific rules will go here
+    },
   },
   {
     // Apply to JS/JSX files

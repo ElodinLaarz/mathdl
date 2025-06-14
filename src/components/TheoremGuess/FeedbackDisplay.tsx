@@ -153,20 +153,53 @@ const PropertyFeedbackItem: React.FC<PropertyFeedbackItemProps> = ({
 
 interface FeedbackDisplayProps {
   guesses: GuessFeedback[];
-  maxGuesses: number;
   targetTheorem: Theorem;
   duplicateGuessToHighlight: string | null;
+  maxGuesses: number;
 }
 
 export default function FeedbackDisplay({
   guesses,
-  maxGuesses,
   targetTheorem,
   duplicateGuessToHighlight,
 }: FeedbackDisplayProps) {
-  const rowsToDisplay = Array.from({ length: maxGuesses }).map((_, i) => guesses[i] || null);
+  // Type guard to check if an object is a valid GuessFeedback
+  const isGuessFeedback = (obj: unknown): obj is GuessFeedback => {
+    return (
+      typeof obj === 'object' &&
+      obj !== null &&
+      'propertiesFeedback' in obj &&
+      'guessString' in obj &&
+      typeof obj.guessString === 'string'
+    );
+  };
 
-  const normalizeForCompare = (str: string = '') =>
+  // Type guard for TheoremPropertiesFeedback
+  const isTheoremPropertiesFeedback = (obj: unknown): obj is TheoremPropertiesFeedback => {
+    return (
+      typeof obj === 'object' &&
+      obj !== null &&
+      'proposedByState' in obj &&
+      'provedByState' in obj &&
+      'yearProposedState' in obj &&
+      'yearProvedState' in obj &&
+      'subfieldState' in obj &&
+      'educationLevelState' in obj &&
+      'geographicalRegionState' in obj &&
+      'proofTechniqueState' in obj
+    );
+  };
+
+  const rowsToDisplay = ((): GuessFeedback[] => {
+    // Only valid GuessFeedback objects
+    const validGuesses = Array.isArray(guesses) ? guesses.filter(isGuessFeedback) : [];
+    const arr: GuessFeedback[] = Object.values(
+      Object.fromEntries(validGuesses.map((guess, index) => [index, guess]))
+    );
+    return arr;
+  })();
+
+  const normalizeForCompare = (str: string = ''): string =>
     str
       .toLowerCase()
       .replace(/[^a-z0-9\s\/,-]/g, '')
@@ -188,10 +221,10 @@ export default function FeedbackDisplay({
           }
 
           const { propertiesFeedback, guessString } = guessFeedback;
-          const normalizedTargetName =
-            targetTheorem && targetTheorem.name ? normalizeForCompare(targetTheorem.name) : '';
-          const isCorrectGuess =
-            propertiesFeedback && normalizeForCompare(guessString) === normalizedTargetName;
+          const normalizedTargetName = targetTheorem?.name
+            ? normalizeForCompare(targetTheorem.name)
+            : '';
+          const isCorrectGuess = normalizeForCompare(guessString) === normalizedTargetName;
 
           const isHighlightedDuplicate =
             duplicateGuessToHighlight &&
@@ -215,7 +248,7 @@ export default function FeedbackDisplay({
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-3 space-y-2">
-                {propertiesFeedback && (
+                {propertiesFeedback && isTheoremPropertiesFeedback(propertiesFeedback) && (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-2 gap-y-1 pt-2 border-t border-muted/30 mt-2">
                     <PropertyFeedbackItem
                       label="Proposed By"
@@ -299,7 +332,7 @@ export default function FeedbackDisplay({
                     />
                   </div>
                 )}
-                {propertiesFeedback &&
+                {isTheoremPropertiesFeedback(propertiesFeedback) &&
                   !propertiesFeedback.guessedTheoremName &&
                   propertiesFeedback.subfieldState === 'not_applicable' && (
                     <p className="text-xs text-muted-foreground italic text-center pt-1">

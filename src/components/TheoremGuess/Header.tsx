@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { useAuth } from '@/context/AuthContext';
 
 export default function Header() {
-  const { user, loading, signInWithGoogle, logout } = useAuth();
+  const { user, loading, signIn, logout } = useAuth();
 
   return (
     <header className="py-4 px-6 border-b flex justify-between items-center bg-background shadow-sm sticky top-0 z-50">
@@ -44,7 +44,7 @@ export default function Header() {
             variant="default"
             size="sm"
             className="bg-accent text-accent-foreground hover:bg-accent/90"
-            onClick={signInWithGoogle}
+            onClick={signIn}
           >
             <LogIn size={16} className="mr-2" /> Login with Google
           </Button>
