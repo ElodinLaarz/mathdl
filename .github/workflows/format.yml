@@ -1,22 +1,14 @@
 name: Format Code
 
-# Run on main and develop branches
 on:
   push:
-    branches: [main, develop]
+    branches: [main]
   pull_request:
-    branches: [main, develop]
-
-# Set minimal permissions
-permissions:
-  contents: read
+    branches: [main]
 
 jobs:
-  format:
+  format-check:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    timeout-minutes: 10
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -30,9 +22,5 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Check formatting
+      - name: Check code formatting
         run: npm run format:check
-
-  # Format check only - removed auto-formatting to prevent security risks
-  # Formatting should be done locally and committed by developers
-  # This ensures all changes are reviewed before being merged

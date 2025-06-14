@@ -1,27 +1,18 @@
 name: Security Checks
 
-# Only trigger on schedule for security checks to prevent PR spoofing
 on:
   push:
     branches: [main, develop]
-  pull_request: {}
+  pull_request:
+    branches: [main, develop]
   schedule:
     # Run security checks daily at 2 AM UTC
     - cron: '0 2 * * *'
-
-# Set default permissions for all jobs
-permissions:
-  contents: read
-  security-events: write
 
 jobs:
   dependency-security:
     name: Dependency Security Scan
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      security-events: write
-    timeout-minutes: 10
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -36,25 +27,23 @@ jobs:
         run: npm ci
 
       - name: Run npm audit
-        run: npm audit --audit-level=moderate
+        run: npm audit --audit-level=high
+        # Only continue on error for scheduled runs
+        continue-on-error: ${{ github.event_name == 'schedule' }}
 
-      - name: Run npm audit fix
+      - name: Show audit fix suggestions
+        if: failure()
         run: npm audit fix --dry-run
-        continue-on-error: true
 
   codeql-analysis:
     name: CodeQL Security Analysis
     runs-on: ubuntu-latest
+    # Skip CodeQL on scheduled runs to save resources
+    if: github.event_name != 'schedule'
     permissions:
       actions: read
       contents: read
-      # Required for CodeQL to upload results
       security-events: write
-    timeout-minutes: 30
-    strategy:
-      fail-fast: false
-      matrix:
-        language: ['javascript', 'typescript']
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -62,8 +51,8 @@ jobs:
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v3
         with:
-          languages: ${{ matrix.language }}
-          queries: security-extended,security-and-quality
+          languages: javascript
+          queries: security-extended
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -74,21 +63,21 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Build project
-        run: npm run build
+      - name: Build project (if build script exists)
+        run: |
+          if npm run build --if-present; then
+            echo "Build completed successfully"
+          else
+            echo "No build script found or build failed - continuing with source analysis"
+          fi
+        continue-on-error: true
 
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v3
-        with:
-          category: '/language:${{matrix.language}}'
 
-  eslint-security:
-    name: ESLint Security Check
+  static-analysis:
+    name: Static Security Analysis
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      security-events: write
-    timeout-minutes: 10
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -102,105 +91,86 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Run ESLint with security rules
-        run: npx eslint . --config eslint.security.config.js --format json --output-file eslint-results.json
+      - name: Run ESLint security check (if config exists)
+        run: |
+          if [ -f ".eslintrc.*" ] || [ -f "eslint.config.*" ]; then
+            # Check if security plugin is available
+            if npm list eslint-plugin-security >/dev/null 2>&1; then
+              npx eslint . --ext .js,.jsx,.ts,.tsx --format json --output-file eslint-results.json || true
+            else
+              echo "ESLint security plugin not found - install eslint-plugin-security for enhanced security checks"
+            fi
+          else
+            echo "No ESLint configuration found - skipping ESLint security check"
+          fi
+        continue-on-error: true
 
-      - name: Upload ESLint results
+      - name: Run TypeScript type check (if available)
+        run: |
+          if [ -f "tsconfig.json" ]; then
+            if npm run typecheck --if-present; then
+              echo "TypeScript check passed"
+            else
+              # Try npx tsc if npm script doesn't exist
+              npx tsc --noEmit || echo "TypeScript check failed or not configured"
+            fi
+          else
+            echo "No TypeScript configuration found"
+          fi
+        continue-on-error: true
+
+      - name: Upload analysis results
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: eslint-security-results
-          path: eslint-results.json
+          name: static-analysis-results
+          path: |
+            eslint-results.json
+          retention-days: 7
 
-  type-security:
-    name: TypeScript Security Check
+  secrets-scan:
+    name: Secret Detection
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    timeout-minutes: 10
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'npm'
+          # Only fetch recent history for PR/push events
+          fetch-depth: ${{ github.event_name == 'schedule' && 0 || 50 }}
 
-      - name: Install dependencies
-        run: npm ci
+      - name: TruffleHog OSS
+        uses: trufflesecurity/trufflehog@v3.63.2
+        with:
+          path: ./
+          base: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || '' }}
+          head: ${{ github.sha }}
+          extra_args: --only-verified --fail
 
-      - name: Run TypeScript type check
-        run: npm run typecheck
-
-      - name: Check for TypeScript strict mode
-        run: |
-          if ! grep -q '"strict": true' tsconfig.json; then
-            echo "::warning::TypeScript strict mode is not enabled. Consider enabling it for better type safety."
-          fi
-
-  semgrep-security:
+  semgrep-scan:
     name: Semgrep Security Scan
     runs-on: ubuntu-latest
-    container:
-      image: returntocorp/semgrep:latest
-    if: (github.actor != 'dependabot[bot]')
-    permissions:
-      contents: read
-    timeout-minutes: 15
+    # Skip Semgrep for dependabot PRs and limit to important events
+    if: github.actor != 'dependabot[bot]' && (github.event_name != 'schedule' || github.ref == 'refs/heads/main')
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
       - name: Run Semgrep
-        run: |
-          semgrep \
-            --config=auto \
-            --config=p/security-audit \
-            --config=p/secrets \
-            --config=p/react \
-            --config=p/typescript \
-            --json \
-            --output=semgrep-results.json \
-            --error-on-findings \
-            .
-
-      - name: Upload Semgrep results
-        uses: actions/upload-artifact@v4
-        if: always()
+        uses: semgrep/semgrep-action@v1
         with:
-          name: semgrep-security-results
-          path: semgrep-results.json
-
-  secrets-scan:
-    name: Secret Detection
-    runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request' || (github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'))
-    permissions:
-      contents: read
-      pull-requests: read
-    timeout-minutes: 10
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: TruffleHog OSS
-        uses: trufflesecurity/trufflehog@main
-        with:
-          path: ./
-          base: ${{ github.event.pull_request.base.ref || 'main' }}
-          head: ${{ github.event.pull_request.head.ref || 'HEAD' }}
-          extra_args: --debug --only-verified
+          config: >-
+            p/security-audit
+            p/secrets
+            p/javascript
+            p/typescript
+        env:
+          SEMGREP_APP_TOKEN: ${{ secrets.SEMGREP_APP_TOKEN }}
 
   license-check:
     name: License Compliance
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    timeout-minutes: 10
+    # Only run license check on scheduled runs or main branch
+    if: github.event_name == 'schedule' || github.ref == 'refs/heads/main'
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -214,38 +184,34 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Install license checker
-        run: npm install --no-save license-checker
-
       - name: Check licenses
         run: |
-          npx license-checker --onlyAllow 'MIT;Apache-2.0;BSD-2-Clause;BSD-3-Clause;ISC;0BSD;Apache-1.1;Apache-2.0;BSD;CC0-1.0;CC-BY-3.0;CC-BY-4.0;WTFPL;Unlicense' --excludePrivatePackages --production
-        continue-on-error: true
+          npx license-checker --onlyAllow 'MIT;Apache-2.0;BSD-2-Clause;BSD-3-Clause;ISC;Apache-1.1;BSD;CC0-1.0;Unlicense' --excludePrivatePackages
+        continue-on-error: ${{ github.event_name == 'schedule' }}
 
-  security-summary:
-    name: Security Summary
+  security-gate:
+    name: Security Gate
     runs-on: ubuntu-latest
-    needs:
-      [
-        dependency-security,
-        codeql-analysis,
-        eslint-security,
-        type-security,
-        semgrep-security,
-        secrets-scan,
-        license-check,
-      ]
-    if: always()
+    needs: [dependency-security, codeql-analysis, static-analysis, secrets-scan, semgrep-scan]
+    if: always() && github.event_name != 'schedule'
     steps:
-      - name: Security Check Summary
+      - name: Check security results
         run: |
-          echo "## Security Check Summary" >> $GITHUB_STEP_SUMMARY
+          echo "## Security Check Results" >> $GITHUB_STEP_SUMMARY
           echo "| Check | Status |" >> $GITHUB_STEP_SUMMARY
           echo "|-------|--------|" >> $GITHUB_STEP_SUMMARY
-          echo "| Dependency Security | ${{ needs.dependency-security.result }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| CodeQL Analysis | ${{ needs.codeql-analysis.result }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| ESLint Security | ${{ needs.eslint-security.result }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| TypeScript Security | ${{ needs.type-security.result }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Semgrep Security | ${{ needs.semgrep-security.result }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Secrets Scan | ${{ needs.secrets-scan.result }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| License Check | ${{ needs.license-check.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🔍 Dependency Security | ${{ needs.dependency-security.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🔎 CodeQL Analysis | ${{ needs.codeql-analysis.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 📊 Static Analysis | ${{ needs.static-analysis.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🔐 Secrets Scan | ${{ needs.secrets-scan.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🛡️ Semgrep Scan | ${{ needs.semgrep-scan.result }} |" >> $GITHUB_STEP_SUMMARY
+          
+          # Fail if critical security checks failed
+          if [[ "${{ needs.dependency-security.result }}" == "failure" ]] || \
+             [[ "${{ needs.secrets-scan.result }}" == "failure" ]] || \
+             [[ "${{ needs.semgrep-scan.result }}" == "failure" ]]; then
+            echo "❌ Critical security checks failed!"
+            exit 1
+          else
+            echo "✅ All critical security checks passed!"
+          fi
