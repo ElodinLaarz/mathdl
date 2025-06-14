@@ -91,10 +91,6 @@ export function getSecureLocalStorageItem<T>(
     const parsed: unknown = JSON.parse(item);
 
     if (validator && !validator(parsed)) {
-      console.warn(
-        `[security] Validation failed for localStorage key '${key}'. Removing invalid data.`,
-        parsed
-      );
       localStorage.removeItem(key);
       return null;
     }
@@ -124,11 +120,11 @@ export function isGuessFeedback(value: unknown): value is GuessFeedback {
   }
   return (
     'guessedTheoremName' in value &&
-    typeof (value as any).guessedTheoremName === 'string' &&
+    typeof (value as GuessFeedback).guessedTheoremName === 'string' &&
     'propertiesFeedback' in value &&
-    typeof (value as any).propertiesFeedback === 'object' &&
+    typeof (value as GuessFeedback).propertiesFeedback === 'object' &&
     'guessString' in value &&
-    typeof (value as any).guessString === 'string'
+    typeof (value as GuessFeedback).guessString === 'string'
   );
 }
 

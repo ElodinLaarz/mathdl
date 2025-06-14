@@ -162,7 +162,6 @@ export default function FeedbackDisplay({
   guesses,
   targetTheorem,
   duplicateGuessToHighlight,
-  maxGuesses,
 }: FeedbackDisplayProps) {
   // Type guard to check if an object is a valid GuessFeedback
   const isGuessFeedback = (obj: unknown): obj is GuessFeedback => {
@@ -191,13 +190,11 @@ export default function FeedbackDisplay({
     );
   };
 
-  const rowsToDisplay = ((): (GuessFeedback | null)[] => {
+  const rowsToDisplay = ((): GuessFeedback[] => {
     // Only valid GuessFeedback objects
     const validGuesses = Array.isArray(guesses) ? guesses.filter(isGuessFeedback) : [];
-    // Fill up to maxGuesses with null placeholders
-    const arr: (GuessFeedback | null)[] = Array.from(
-      { length: maxGuesses },
-      (_, i) => validGuesses[i] || null
+    const arr: GuessFeedback[] = Object.values(
+      Object.fromEntries(validGuesses.map((guess, index) => [index, guess]))
     );
     return arr;
   })();

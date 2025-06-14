@@ -67,12 +67,10 @@ ChartContainer.displayName = 'Chart';
 const ChartStyle = ({ id, config }: { id: string; config: ChartConfig }) => {
   const colorConfig = Object.entries(config).filter(([, config]) => config.theme || config.color);
 
-  if (!colorConfig.length) {
-    return null;
-  }
-
   // Sanitize CSS values to prevent XSS
-  const generateSecureCSS = React.useMemo((): string => {
+  const secureCSS = React.useMemo((): string => {
+    if (!colorConfig.length) return '';
+
     return Object.entries(THEMES)
       .map(([theme, prefix]) => {
         const sanitizedPrefix = sanitizeCSSValue(prefix);
@@ -89,18 +87,19 @@ const ChartStyle = ({ id, config }: { id: string; config: ChartConfig }) => {
           .filter(Boolean)
           .join('\n');
 
-        return `${sanitizedPrefix} [data-chart=${sanitizedId}] {\n${colorRules}\n}`;
+        return colorRules
+          ? `${sanitizedPrefix} [data-chart=${sanitizedId}] {\n${colorRules}\n}`
+          : '';
       })
+      .filter(Boolean)
       .join('\n');
-  };
+  }, [id, colorConfig]);
 
-  return (
-    <style
-      dangerouslySetInnerHTML={{
-        __html: generateSecureCSS(),
-      }}
-    />
-  );
+  if (!secureCSS) {
+    return null;
+  }
+
+  return <style dangerouslySetInnerHTML={{ __html: secureCSS }} />;
 };
 
 const ChartTooltip = RechartsPrimitive.Tooltip;
