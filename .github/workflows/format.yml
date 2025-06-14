@@ -1,11 +1,11 @@
 name: Format Code
 
-# Only run on main branch to prevent potential abuse
+# Run on main and develop branches
 on:
   push:
-    branches: [main]
+    branches: [main, develop]
   pull_request:
-    branches: [main]
+    branches: [main, develop]
 
 # Set minimal permissions
 permissions:
@@ -33,45 +33,6 @@ jobs:
       - name: Check formatting
         run: npm run format:check
 
-  format-prettier:
-    runs-on: ubuntu-latest
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    permissions:
-      contents: write  # Required for creating commits
-    timeout-minutes: 10
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@8ade135a41bc03e1559d5b323c86b6d73b6cdb43  # v4.1.1
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          # Limit fetch depth to 1 for better security
-          fetch-depth: 1
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Format code
-        run: npm run format
-
-      # Note: Auto-committing from CI can be a security risk. Consider requiring manual review of formatting changes.
-      # This action is pinned to a specific commit hash for security
-      - name: Commit changes
-        uses: stefanzweifel/git-auto-commit-action@d1f933dcd435a9aec6feaefdfb3b4a7b5c7b96a4  # v5.0.0
-        with:
-          commit_message: '🎨 Formatted code with Prettier'
-          file_pattern: '**/*.{js,jsx,ts,tsx,css,md,json}'
-          commit_user_name: 'GitHub Actions Bot'
-          commit_user_email: 'github-actions[bot]@users.noreply.github.com'
-          commit_author: 'GitHub Actions Bot <github-actions[bot]@users.noreply.github.com>'
-          # Only commit if there are changes
-          skip_fetch: true
-          # Add verification token for commit signing (if needed)
-          # signing_key: ${{ secrets.GPG_PRIVATE_KEY }}
-          # signing_committer_name: 'GitHub Actions Bot'
-          # signing_committer_email: 'github-actions[bot]@users.noreply.github.com'
+  # Format check only - removed auto-formatting to prevent security risks
+  # Formatting should be done locally and committed by developers
+  # This ensures all changes are reviewed before being merged

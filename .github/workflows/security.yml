@@ -37,7 +37,6 @@ jobs:
 
       - name: Run npm audit
         run: npm audit --audit-level=moderate
-        continue-on-error: true
 
       - name: Run npm audit fix
         run: npm audit fix --dry-run
@@ -105,7 +104,6 @@ jobs:
 
       - name: Run ESLint with security rules
         run: npx eslint . --config eslint.security.config.js --format json --output-file eslint-results.json
-        continue-on-error: true
 
       - name: Upload ESLint results
         uses: actions/upload-artifact@v4
@@ -146,7 +144,7 @@ jobs:
     name: Semgrep Security Scan
     runs-on: ubuntu-latest
     container:
-      image: returntocorp/semgrep@sha256:1f5b9e3f9b9b9b9b9b9b9b9b9b9b9b9b9b9b9b9b9b9b9b9b9b9b9b9b9b9b9b9b9
+      image: returntocorp/semgrep:latest
     if: (github.actor != 'dependabot[bot]')
     permissions:
       contents: read
@@ -165,8 +163,8 @@ jobs:
             --config=p/typescript \
             --json \
             --output=semgrep-results.json \
+            --error-on-findings \
             .
-        continue-on-error: true
 
       - name: Upload Semgrep results
         uses: actions/upload-artifact@v4
@@ -178,7 +176,7 @@ jobs:
   secrets-scan:
     name: Secret Detection
     runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request'
+    if: github.event_name == 'pull_request' || (github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'))
     permissions:
       contents: read
       pull-requests: read
@@ -193,8 +191,8 @@ jobs:
         uses: trufflesecurity/trufflehog@main
         with:
           path: ./
-          base: main
-          head: HEAD
+          base: ${{ github.event.pull_request.base.ref || 'main' }}
+          head: ${{ github.event.pull_request.head.ref || 'HEAD' }}
           extra_args: --debug --only-verified
 
   license-check:
@@ -221,7 +219,7 @@ jobs:
 
       - name: Check licenses
         run: |
-          npx license-checker --onlyAllow 'MIT;Apache-2.0;BSD-2-Clause;BSD-3-Clause;ISC;0BSD;Apache-1.1;Apache-2.0;BSD;CC0-1.0;CC-BY-3.0;CC-BY-4.0;WTFPL;Unlicense' --excludePrivatePackages
+          npx license-checker --onlyAllow 'MIT;Apache-2.0;BSD-2-Clause;BSD-3-Clause;ISC;0BSD;Apache-1.1;Apache-2.0;BSD;CC0-1.0;CC-BY-3.0;CC-BY-4.0;WTFPL;Unlicense' --excludePrivatePackages --production
         continue-on-error: true
 
   security-summary:
