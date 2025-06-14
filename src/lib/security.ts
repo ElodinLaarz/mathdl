@@ -115,13 +115,21 @@ export function isValidGameState(value: unknown): value is 'playing' | 'won' | '
 
 /**
  * Type guard for validating a single GuessFeedback object.
- * Checks for required properties: guessedTheoremName, propertiesFeedback, and guessString.
+ * Checks for required properties and their types: guessedTheoremName (string),
+ * propertiesFeedback (object), and guessString (string).
  */
 export function isGuessFeedback(value: unknown): value is GuessFeedback {
   if (typeof value !== 'object' || value === null) {
     return false;
   }
-  return 'guessedTheoremName' in value && 'propertiesFeedback' in value && 'guessString' in value;
+  return (
+    'guessedTheoremName' in value &&
+    typeof (value as any).guessedTheoremName === 'string' &&
+    'propertiesFeedback' in value &&
+    typeof (value as any).propertiesFeedback === 'object' &&
+    'guessString' in value &&
+    typeof (value as any).guessString === 'string'
+  );
 }
 
 /**
