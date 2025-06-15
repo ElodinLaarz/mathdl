@@ -3,35 +3,31 @@
  */
 
 import type { GuessFeedback } from '@/types';
-import DOMPurify from 'isomorphic-dompurify';
-
-// Configure DOMPurify to be more restrictive by default
-DOMPurify.addHook('uponSanitizeElement', (node, _data) => {
-  // Only allow style elements with specific attributes
-  const element = node as HTMLElement;
-  if (element.tagName === 'STYLE') {
-    // Keep only the type attribute if it's text/css
-    const attributes = Array.from(element.attributes);
-    attributes.forEach(attr => {
-      if (attr.name !== 'type' || attr.value !== 'text/css') {
-        element.removeAttribute(attr.name);
-      }
-    });
-  }
-});
+import sanitizeHtml from 'sanitize-html';
 
 /**
- * Sanitize HTML content to prevent XSS attacks
- * @param html The HTML content to sanitize
- * @returns Sanitized HTML string
+ * Sanitize CSS by removing dangerous URL schemes using regex
+ */
+function sanitizeCss(css: string): string {
+  const dangerousUrlRegex = /url\s*\(\s*['"]?\s*(javascript|data|vbscript):/gi;
+
+  return css.replace(dangerousUrlRegex, 'url(about:blank)');
+}
+
+/**
+ * Sanitize HTML content to prevent XSS attacks, including within <style> tags.
  */
 export function sanitizeHTML(html: string): string {
-  return DOMPurify.sanitize(html, {
-    ALLOWED_TAGS: ['style'],
-    ALLOWED_ATTR: ['type'],
-    FORBID_TAGS: ['script', 'iframe', 'object', 'embed', 'link'],
-    FORBID_ATTR: ['onerror', 'onload', 'onclick'],
-    KEEP_CONTENT: false,
+  return sanitizeHtml(html, {
+    allowedTags: ['style'],
+    allowedAttributes: {
+      style: ['type'],
+    },
+    textFilter: (text, tagName) => {
+      return tagName === 'style' ? sanitizeCss(text) : text;
+    },
+    disallowedTagsMode: 'discard',
+    enforceHtmlBoundary: true,
   });
 }
 
