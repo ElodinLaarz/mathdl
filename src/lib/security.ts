@@ -5,23 +5,30 @@
 import type { GuessFeedback } from '@/types';
 import sanitizeHtml from 'sanitize-html';
 
-// Configure sanitize-html to be more restrictive by default
-const sanitizeOptions = {
-  allowedTags: ['style'],
-  allowedAttributes: {
-    style: ['type'],
-  },
-  disallowedTagsMode: 'discard',
-  enforceHtmlBoundary: true,
-};
+/**
+ * Sanitize CSS by removing dangerous URL schemes using regex
+ */
+function sanitizeCss(css: string): string {
+  const dangerousUrlRegex = /url\s*\(\s*['"]?\s*(javascript|data|vbscript):/gi;
+
+  return css.replace(dangerousUrlRegex, 'url(about:blank');
+}
 
 /**
- * Sanitize HTML content to prevent XSS attacks
- * @param html The HTML content to sanitize
- * @returns Sanitized HTML string
+ * Sanitize HTML content to prevent XSS attacks, including within <style> tags.
  */
 export function sanitizeHTML(html: string): string {
-  return sanitizeHtml(html, sanitizeOptions);
+  return sanitizeHtml(html, {
+    allowedTags: ['style'],
+    allowedAttributes: {
+      style: ['type'],
+    },
+    textFilter: (text, tagName) => {
+      return tagName === 'style' ? sanitizeCss(text) : text;
+    },
+    disallowedTagsMode: 'discard',
+    enforceHtmlBoundary: true,
+  });
 }
 
 /**
