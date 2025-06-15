@@ -11,7 +11,7 @@ import sanitizeHtml from 'sanitize-html';
 function sanitizeCss(css: string): string {
   const dangerousUrlRegex = /url\s*\(\s*['"]?\s*(javascript|data|vbscript):/gi;
 
-  return css.replace(dangerousUrlRegex, 'url(about:blank');
+  return css.replace(dangerousUrlRegex, 'url(about:blank)');
 }
 
 /**
