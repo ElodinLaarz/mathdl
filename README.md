@@ -1,5 +1,8 @@
 # MathDL - Theorem Guesser
 
+[![Format Check](https://github.com/ElodinLaarz/mathdl/actions/workflows/format.yml/badge.svg)](https://github.com/ElodinLaarz/mathdl/actions/workflows/format.yml)
+[![Security Check](https://github.com/ElodinLaarz/mathdl/actions/workflows/security.yml/badge.svg)](https://github.com/ElodinLaarz/mathdl/actions/workflows/security.yml)
+
 A daily guessing game for mathematical theorems, inspired by Wordle. Each day, players try to guess the theorem of the day by entering theorem names and receiving detailed feedback about various properties.
 
 ## Features
