@@ -16,7 +16,9 @@
     "security:audit": "npm audit --audit-level=moderate",
     "security:audit-fix": "npm audit fix",
     "security:check": "npm run lint:security && npm run typecheck && npm run security:audit",
-    "prepare": "husky"
+    "prepare": "husky",
+    "test": "vitest",
+    "test:ui": "vitest --ui"
   },
   "dependencies": {
     "@hookform/resolvers": "^4.1.3",
@@ -61,6 +63,9 @@
   },
   "devDependencies": {
     "@ianvs/prettier-plugin-sort-imports": "^4.4.2",
+    "@next/eslint-plugin-next": "^15.3.3",
+    "@testing-library/jest-dom": "^6.8.0",
+    "@testing-library/react": "^16.3.0",
     "@types/css-tree": "^2.3.10",
     "@types/node": "20.19.11",
     "@types/react": "^18",
@@ -68,20 +73,23 @@
     "@types/sanitize-html": "^2.16.0",
     "@typescript-eslint/eslint-plugin": "^8.34.0",
     "@typescript-eslint/parser": "^8.34.0",
+    "@vitejs/plugin-react": "^5.0.2",
+    "@vitest/ui": "^3.2.4",
     "autoprefixer": "^10.4.21",
     "eslint": "^9.29.0",
     "eslint-config-next": "^15.3.3",
-    "@next/eslint-plugin-next": "^15.3.3",
     "eslint-plugin-react-hooks": "^5.1.0",
     "eslint-plugin-security": "^3.0.1",
     "husky": "^9.1.7",
+    "jsdom": "^26.1.0",
     "license-checker": "^25.0.1",
     "lint-staged": "^16.1.1",
     "postcss": "^8.5.5",
     "prettier": "^3.5.3",
     "prettier-plugin-tailwindcss": "^0.6.12",
     "tailwindcss": "^3.4.17",
-    "typescript": "5.9.2"
+    "typescript": "5.9.2",
+    "vitest": "^3.2.4"
   },
   "overrides": {
     "tmp": "0.2.5"
