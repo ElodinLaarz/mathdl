@@ -10,7 +10,7 @@ const mockTheorems: Theorem[] = [
     proposedBy: 'Pythagoras',
     yearProposed: -530,
     subfield: 'Geometry',
-    educationLevel: 'High School',
+    educationLevel: 'Elementary',
     geographicalRegion: 'Greece',
     proofTechnique: 'Geometric proof',
   },

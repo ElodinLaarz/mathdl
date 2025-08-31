@@ -1,13 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import type {
-  GameStats,
-  GuessFeedback,
-  PropertyComparisonState,
-  TheoremPropertiesFeedback,
-  YearComparisonState,
-} from '@/types';
+import type { GameStats, GuessFeedback } from '@/types';
 import { HelpCircle, Send } from 'lucide-react';
 import FeedbackDisplay from '@/components/TheoremGuess/FeedbackDisplay';
 import GameEndDisplay from '@/components/TheoremGuess/GameEndDisplay';
