@@ -628,25 +628,9 @@ export default function HomePage() {
                           <br />
                           🟩 Correct (Exact Match).
                           <br />
-                          🟨 Partial Match (Some elements overlap, e.g., one of several
-                          authors/regions is correct. Applies to Proposed/Proved By and Geographical
-                          Region).
+                          🟨 Partial Match (Partially overlap in correct information).
                           <br />
-                          🟥 Incorrect (No match or no overlap).
-                        </li>
-                        <li>
-                          <strong>Year Proposed, Year Proved:</strong>
-                          <br />
-                          🟩 Exact Match.
-                          <br />
-                          🟨 Target year is later (↑) or earlier (↓) but in the same century.
-                          <br />
-                          🟥 Target year is much later (↑) or much earlier (↓) in a different
-                          century or era.
-                        </li>
-                        <li>
-                          N/A (❔) means the property couldn't be compared for your guess (e.g.,
-                          guess not in database).
+                          🟥 Incorrect (No matching information to guess).
                         </li>
                       </ul>
                       <p className="pt-2">
